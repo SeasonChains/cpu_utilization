@@ -18,6 +18,7 @@ class ConsoleAlert(AlertObserver):
     def notification(self, message: str):
         print(f"[ConsoleCPUAlert] {message}")
 
+
 class CPULoad:
     def __init__(self, threshold=CPU_THRESHOLD, log_interval=LOG_INTERVAL, log_file=LOG_FILE):
         """
@@ -31,6 +32,7 @@ class CPULoad:
         self.log_file = log_file
         self.logger = CPULogger(name="CPULoadLogger", log_file=self.log_file, level=logging.INFO).get_logger()
         self.alert_observers = []  # List of alert observers
+        self.running = False  # Monitoring state flag
 
     def obsrvr_attach(self, observer: AlertObserver):
         """
@@ -55,7 +57,7 @@ class CPULoad:
             observer.notification(message)
 
     def collect_cpu_core_usg(self):
-        """Collect CPU usage for individual cores and log observation"""
+        """Collect CPU usage for individual cores and log observation."""
         cpu_count = psutil.cpu_count(logical=True)
         self.logger.info(f"Monitoring {cpu_count} CPU cores.")
         per_core_usage = psutil.cpu_percent(interval=None, percpu=True)
@@ -95,21 +97,31 @@ class CPULoad:
             load_averages = self.check_cpu_load_avrg()
             self.check_thresholds(per_core_usage, load_averages)
         except Exception as e:
-            self.logger.error(f"Error during load check: {e}")
+            self.logger.error(f"Error during load check: {type(e).__name__} - {e}")
 
-    def monitor(self):
-        """Continuous CPU load monitor"""
-        self.logger.info("Starting to monitor CPU load")
+    def start_monitoring(self):
+        """
+        Start the CPU load monitoring loop.
+        """
+        self.running = True
+        self.logger.info("Starting CPU load monitoring.")
         try:
-            while True:
+            while self.running:
                 self.load_check()
                 time.sleep(self.log_interval)
         except KeyboardInterrupt:
-            self.logger.info("CPU load monitoring interrupted")
+            self.logger.info("CPU load monitoring interrupted by user.")
         except Exception as e:
-            self.logger.error(f"Unexpected error: {e}")
+            self.logger.error(f"Unexpected error during monitoring: {type(e).__name__} - {e}")
         finally:
-            self.logger.info("CPU load monitoring ended.")
+            self.logger.info("CPU load monitoring has been gracefully stopped.")
+
+    def stop_monitoring(self):
+        """
+        Stop the CPU load monitoring loop.
+        """
+        self.running = False
+        self.logger.info("Stopping CPU load monitoring.")
 
 
 def main():
@@ -119,7 +131,31 @@ def main():
     cpu_load = CPULoad()
     console_alert = ConsoleAlert()
     cpu_load.obsrvr_attach(console_alert)
-    cpu_load.monitor()
+
+    import threading
+    # Run monitoring in a separate thread
+    monitor_thread = threading.Thread(target=cpu_load.start_monitoring)
+    monitor_thread.start()
+
+    try:
+        while True:
+            command = input("Type 'stop' to end monitoring or 'start' to resume: ").strip().lower()
+            if command == "stop":
+                cpu_load.stop_monitoring()
+                monitor_thread.join()
+                print("Monitoring stopped.")
+            elif command == "start":
+                if not monitor_thread.is_alive():
+                    monitor_thread = threading.Thread(target=cpu_load.start_monitoring)
+                    monitor_thread.start()
+                else:
+                    print("Monitoring is already running.")
+    except KeyboardInterrupt:
+        cpu_load.stop_monitoring()
+        monitor_thread.join()
+        print("Monitoring interrupted by user.")
+    finally:
+        print("Program terminated.")
 
 
 if __name__ == "__main__":
