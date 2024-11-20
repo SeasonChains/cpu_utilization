@@ -3,7 +3,7 @@ from logging.handlers import TimedRotatingFileHandler
 from logging import Formatter
 import os
 from abc import ABC, abstractmethod  # For Observer base class
-from config import LOG_FILE, LOG_BACKUP
+from resource_monitor.config import LOG_FILE, LOG_BACKUP
 
 
 class LogObserver(ABC):

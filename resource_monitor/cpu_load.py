@@ -1,7 +1,7 @@
 import psutil
 import time, logging
-from logger import CPULogger
-from config import CPU_THRESHOLD, LOG_INTERVAL, LOG_FILE
+from resource_monitor.logger import CPULogger
+from resource_monitor.config import CPU_CRITICAL_THRESHOLD, LOG_INTERVAL, LOG_FILE
 from abc import ABC, abstractmethod
 
 
@@ -20,7 +20,7 @@ class ConsoleAlert(AlertObserver):
 
 
 class CPULoad:
-    def __init__(self, threshold=CPU_THRESHOLD, log_interval=LOG_INTERVAL, log_file=LOG_FILE):
+    def __init__(self, threshold=CPU_CRITICAL_THRESHOLD, log_interval=LOG_INTERVAL, log_file=LOG_FILE):
         """
         Initialize the CPU Load class.
         :param threshold: CPU usage threshold for warnings.
@@ -110,7 +110,7 @@ class CPULoad:
                 self.load_check()
                 time.sleep(self.log_interval)
         except KeyboardInterrupt:
-            self.logger.info("CPU load monitoring interrupted by user.")
+            self.logger.info("User pressed 'cltr+c' , monitoring interrupted")
         except Exception as e:
             self.logger.error(f"Unexpected error during monitoring: {type(e).__name__} - {e}")
         finally:
